@@ -71,9 +71,12 @@ MOCK_INFERENCE=false
 
 Run migrations `001` through `005` in order.
 
-**Not yet verified:** migrations 004/005 against a live Supabase project,
-real RLS behavior, production HTTPS/HSTS, and multi-replica deployments.
-See [FINAL_STATUS.md](FINAL_STATUS.md) for the full list.
+**Verified:** migrations 001-005 were run on a live Supabase project, and an
+analysis saved successfully afterwards.
+
+**Not yet verified:** real RLS behavior with multiple users, production
+HTTPS/HSTS, and multi-replica deployments. See
+[FINAL_STATUS.md](FINAL_STATUS.md) for the full list.
 
 ## Documentation
 
