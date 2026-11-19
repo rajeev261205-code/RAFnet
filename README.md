@@ -6,6 +6,8 @@ RAFNet analyzes audio for synthetic speech and scores calls for scam risk,
 using a hybrid classical + quantum model pipeline. Results stream in real
 time to a React dashboard backed by FastAPI, WebSockets and Supabase auth.
 
+![RAFNet dashboard](docs/dashboard.png)
+
 **Status:** security-audited and hardened (owner-scoped data access,
 fail-closed production auth, bounded inputs). 442 tests passing, 3 skipped
 (optional XGBoost/PennyLane paths), 0 failing. Known remaining risks and
