@@ -79,9 +79,9 @@ async def analyze_audio(file: UploadFile = File(...)):
         supabase.save_analysis(analysis.model_dump())
         logger.info(f"Analysis complete: {analysis.id} - {analysis.prediction}")
         return analysis
-    except Exception as e:
-        logger.error(f"Analysis error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("Analysis failed")
+        raise HTTPException(status_code=500, detail="Analysis failed")
 
 @app.get("/api/history")
 async def get_history():

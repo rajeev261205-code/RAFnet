@@ -259,3 +259,79 @@ def test_hsts_only_in_production(monkeypatch):
 
     r = TestClient(app).get("/x")
     assert "strict-transport-security" in r.headers
+
+
+def test_supabase_409_is_logged_redacted_and_returns_generic_error(caplog):
+    import io
+    import json
+    import logging
+    import urllib.error
+    from unittest.mock import patch
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from rafnet.soc import routes
+    from rafnet.soc.model_adapter import MockVoiceModel
+    from rafnet.soc.service import SOCService
+    from rafnet.soc.store import SupabaseAnalysisStore
+
+    secret = "SUPER_SECRET_SERVICE_KEY_123456"
+    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyLTEifQ.fake_signature_123456"
+    error_body = json.dumps(
+        {
+            "code": "23503",
+            "message": (
+                'insert or update on table "analysis_results" violates '
+                f"foreign key constraint apikey={secret}"
+            ),
+            "details": (
+                "Key (user_id)=(11111111-1111-1111-1111-111111111111) "
+                'is not present in table "profiles". token=' + jwt
+            ),
+        }
+    ).encode()
+
+    class _ProbeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'[{"id":"probe"}]'
+
+    def _urlopen(req, timeout=None):
+        if req.get_method() == "GET":
+            return _ProbeResponse()
+        raise urllib.error.HTTPError(
+            req.full_url, 409, "Conflict", {}, io.BytesIO(error_body)
+        )
+
+    with patch("urllib.request.urlopen", side_effect=_urlopen), patch(
+        "rafnet.soc.routes._client_key", return_value="supabase-409-test"
+    ):
+        store = SupabaseAnalysisStore("http://supabase.test", "test-service-key")
+        service = SOCService(MockVoiceModel(), store=store)
+        routes.override_soc_service(service)
+        app = FastAPI()
+        app.include_router(routes.router)
+        with caplog.at_level(logging.ERROR, logger="rafnet.soc.store"):
+            response = TestClient(app).post(
+                "/api/analyze", files={"file": ("tone.wav", _wav_bytes(), "audio/wav")}
+            )
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Analysis failed"}
+    log = caplog.text
+    assert "status=409" in log
+    assert "table=analysis_results" in log
+    assert "method=POST" in log
+    assert "23503" in log
+    assert "profiles" in log
+    assert "foreign key constraint" in log
+    assert secret not in log
+    assert jwt not in log
+    assert secret not in response.text
+    assert jwt not in response.text

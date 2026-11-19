@@ -14,10 +14,23 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from collections import deque
 from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
+
+_JWT_RE = re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b")
+_SECRET_ASSIGNMENT_RE = re.compile(
+    r"(?i)\b(api[_-]?key|apikey|authorization|bearer|token|secret|service[_-]?role[_-]?key|password|key)\b\s*[:=]\s*[\"']?([^\s\"',;}]+)"
+)
+_SUPABASE_KEY_RE = re.compile(r"\bsb_(?:secret|publishable)_[A-Za-z0-9_-]{8,}")
+
+
+def _redact_secrets(text: str) -> str:
+    text = _JWT_RE.sub("[REDACTED_JWT]", text)
+    text = _SUPABASE_KEY_RE.sub("[REDACTED_KEY]", text)
+    return _SECRET_ASSIGNMENT_RE.sub(lambda m: f"{m.group(1)}=[REDACTED]", text)
 
 
 def _owned_by(row: dict[str, Any], user_id: str | None) -> bool:
@@ -139,6 +152,7 @@ class SupabaseAnalysisStore:
         method: str = "GET",
         body: dict[str, Any] | None = None,
     ) -> Any:
+        import urllib.error
         import urllib.parse
 
         query = ("?" + urllib.parse.urlencode(params)) if params else ""
@@ -153,9 +167,20 @@ class SupabaseAnalysisStore:
                 "Prefer": "return=representation",
             },
         )
-        with self._request.urlopen(req, timeout=self._timeout) as resp:
-            text = resp.read().decode()
-            return self._json.loads(text) if text else []
+        try:
+            with self._request.urlopen(req, timeout=self._timeout) as resp:
+                text = resp.read().decode()
+                return self._json.loads(text) if text else []
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            logger.error(
+                "Supabase REST error: status=%s table=%s method=%s body=%s",
+                exc.code,
+                table,
+                method,
+                _redact_secrets(body),
+            )
+            raise
 
     @staticmethod
     def _user_filter(user_id: str | None) -> str:
