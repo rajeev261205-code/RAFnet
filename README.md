@@ -9,7 +9,7 @@ time to a React dashboard backed by FastAPI, WebSockets and Supabase auth.
 ![RAFNet dashboard](docs/dashboard.png)
 
 **Status:** security-audited and hardened (owner-scoped data access,
-fail-closed production auth, bounded inputs). 442 tests passing, 3 skipped
+fail-closed production auth, bounded inputs). 443 tests passing, 3 skipped
 (optional XGBoost/PennyLane paths), 0 failing. Known remaining risks and
 unverified items are listed in [FINAL_STATUS.md](FINAL_STATUS.md).
 
