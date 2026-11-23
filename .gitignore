@@ -42,7 +42,9 @@ reports/layer_eval.json
 reports/layer_eval.md
 # Phase: data, weights, notebooks outputs stay out of git
 data/
-models/
+models/*
+!models/stacking.json
+!models/head_phase4.pt
 notebooks/*.ipynb_checkpoints/
 *.joblib
 frontend/design-ref/

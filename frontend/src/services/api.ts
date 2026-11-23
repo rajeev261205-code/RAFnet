@@ -17,11 +17,24 @@ import type {
   ThreatRecord,
 } from "../types";
 
-export const API_BASE_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) || "http://localhost:8000";
+const apiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+export const API_BASE_URL = (apiUrl || "http://localhost:8000").replace(/\/+$/, "");
 
-export const WS_URL =
-  (import.meta.env.VITE_WS_URL as string | undefined) || "ws://localhost:8000/ws/live";
+function wsUrlFromApi(api: string): string {
+  try {
+    const url = new URL(api);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    url.pathname = "/ws/live";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return "ws://localhost:8000/ws/live";
+  }
+}
+
+const wsUrl = (import.meta.env.VITE_WS_URL as string | undefined)?.trim();
+export const WS_URL = wsUrl || wsUrlFromApi(API_BASE_URL);
 
 let tokenGetter: () => string | null = () => null;
 
